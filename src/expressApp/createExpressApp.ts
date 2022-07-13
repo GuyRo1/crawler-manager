@@ -5,15 +5,16 @@ import { Express } from 'express'
 import { healthCheck } from './middleware/healthCheck';
 import { errorHandler } from './middleware/errorHandler';
 import { currentRequestUrl } from './middleware/currentRequestUrl';
+import { DependenciesContainer } from '../dependencies/models/classes';
 
 
 
-export const createApp = (routers: RouterContainer[], dependencies: DependencyContainer[]): Express => {
+export const createApp = (routers: RouterContainer[], dependencies: DependenciesContainer): Express => {
     const app = express();
     app.use(cors());
     app.use(express.json())
     app.use(currentRequestUrl)
-    mountDependencies(app, dependencies)
+    mountDependencies(app, dependencies.getAll())
     const log: string[] = mountRouters(app, routers)
     if (log.length !== 0) throw { log }
     app.use(healthCheck)

@@ -24,9 +24,10 @@ export class TaskContainer {
         return this._serverId;
     }
 
-    checkStatus(urlsChanged: boolean): Status {
-        if (this.count >= this.max)
+    checkStatus(): Status {
+        if (this.count >= this.max) {
             return 'enough'
+        }
         if (Array.from(this.urls).filter((item: any[]) => item[1]).length === this.urls.size)
             return 'fulfilled'
         return 'ok'
@@ -36,12 +37,14 @@ export class TaskContainer {
         this.urls.set(orgUrl, true);
         this.next = this.next.concat(nextUrls);
         this.count += nextUrls.length;
-        return this.checkStatus(true)
+        console.log(this.count);
+        
+        return this.checkStatus()
     }
 
     updateLayer() {
         this.layer++;
-        return this.layer<=this.depth;
+        return this.layer <= this.depth;
     }
 
     nextLayer() {

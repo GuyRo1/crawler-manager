@@ -52,7 +52,8 @@ loadDependencies()
         console.log(`subscribed to  ${serverId}`);
 
         subscriber.subscribe(serverId, (message: string) => {
-
+           
+            
             const { taskId, urls, srcUrl, }:
                 {
                     serverId: string,
@@ -61,8 +62,11 @@ loadDependencies()
                     urls: string[]
                 }
                 = JSON.parse(message)
-
+           
+            
             const task: TaskContainer | undefined = tasks.get(taskId)
+            
+            
             if (!task) return
             console.log(`publishing to ${task.serverId()}`);
             publish(task.serverId(), JSON.stringify({ id: taskId, urls }))
@@ -75,11 +79,16 @@ loadDependencies()
                     break;
                 case 'fulfilled':
                     if (task.updateLayer()) {
+                        console.log("got here no idea why only once though");
+                        
                         task.nextLayer()
+                        console.log(serverId);
+                        
                         workQueue.send({ ...task.toQueue(), serverId })
                     } else {
                         tasks.delete(taskId)
                     }
+                    break;
                 case 'enough': {
                     tasks.delete(taskId)
                     break;

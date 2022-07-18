@@ -1,13 +1,9 @@
-import { DependencyContainer } from "../expressApp/types/types"
 import { createQueueService } from './services/Queue';
+import { createCacheGetter } from './services/cache'
 import { createSubscriber, createPublisher } from './services/pubSub';
 import { DependenciesContainer } from "./models/classes";
 
-
-
-
 export const loadDependencies = async () => {
-    const dependencies: DependencyContainer[] = []
     try {
         return new DependenciesContainer([
             {
@@ -24,6 +20,11 @@ export const loadDependencies = async () => {
                 name: 'Publish',
                 type: 'factory',
                 dependency: createPublisher
+            },
+            {
+                name: 'GetCache',
+                type: 'factory',
+                dependency: createCacheGetter
             }
         ])
     } catch (err) {

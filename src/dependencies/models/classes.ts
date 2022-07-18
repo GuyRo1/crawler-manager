@@ -5,7 +5,6 @@ const chooseGetter = (dependency: DependencyContainer) => {
     if (!dependency.type || !dependency.dependency || dependency.name)
 
         return (((dependency: DependencyContainer) => {
-            console.log("something is wrong with the dependency");
             return null
         }).bind(null, dependency))
 

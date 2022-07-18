@@ -13,9 +13,13 @@ import crypto from 'crypto'
 
 import 'dotenv/config'
 import { Subscriber } from './dependencies/models/Subscriber';
+import { CachedLink, GetCachedItems } from './dependencies/services/cache';
 
 
-const port = process.env.PORT ?? 3000
+const port = process.argv[2] ?? process.env.PORT ?? 3000
+console.log(port);
+
+
 
 loadDependencies()
     .then(async dependencies => {
@@ -28,32 +32,35 @@ loadDependencies()
         server.listen(port, () => {
             console.log(`listening on port ${port}`);
         })
+
         const tasksQueue: QueueService = await dependencies.get('Queue');
         const workQueue: QueueService = await dependencies.get('Queue')
         const publish: Publish = await dependencies.get('Publish')
-        tasksQueue.channel.assertQueue('new-tasks');
-        tasksQueue.channel.consume('new-tasks', async (message: ConsumeMessage | null) => {
-            const content = message?.content?.toString()
-            if (!content) return
+        const getCache: GetCachedItems = await dependencies.get('GetCache')
 
-            const task: QueueMessage = JSON.parse(content);
-            const taskContainer: TaskContainer = new TaskContainer(
-                task.url,
-                task.serverId,
-                task.id,
-                task.max,
-                task.depth,
-            )
-            tasks.set(task.id, taskContainer);
-            tasks.get(task.id)?.print()
-            workQueue.send({ ...taskContainer.toQueue(), serverId })
-            tasksQueue.channel.ack(message as Message);
-        })
+        tasksQueue.channel.assertQueue('new-tasks');
+        tasksQueue.channel
+            .consume('new-tasks', async (message: ConsumeMessage | null) => {
+                const content = message?.content?.toString()
+                if (!content) return
+
+                const task: QueueMessage = JSON.parse(content);
+                const taskContainer: TaskContainer = new TaskContainer(
+                    task.url,
+                    task.serverId,
+                    task.id,
+                    task.max,
+                    task.depth,
+                )
+
+                tasks.set(task.id, taskContainer);
+                workQueue.send({ ...taskContainer.toQueue(), serverId }, { getCache, publish })
+                tasksQueue.channel.ack(message as Message);
+            })
+
         console.log(`subscribed to  ${serverId}`);
 
-        subscriber.subscribe(serverId, (message: string) => {
-           
-            
+        subscriber.subscribe(serverId, async (message: string) => {
             const { taskId, urls, srcUrl, }:
                 {
                     serverId: string,
@@ -62,39 +69,35 @@ loadDependencies()
                     urls: string[]
                 }
                 = JSON.parse(message)
-           
-            
-            const task: TaskContainer | undefined = tasks.get(taskId)
-            
-            
-            if (!task) return
-            console.log(`publishing to ${task.serverId()}`);
-            publish(task.serverId(), JSON.stringify({ id: taskId, urls }))
 
+            const task: TaskContainer | undefined = tasks.get(taskId)
+
+            if (!task) return
+
+            await publish(task.serverId(), JSON.stringify({ id: taskId, urls }))
             const status: Status = task.updateUrls({ orgUrl: srcUrl, nextUrls: urls })
-            console.log(status);
-            
             switch (status) {
                 case 'ok':
+                    // console.log(`${task.getNeededUrls().length} links left`);
                     break;
                 case 'fulfilled':
                     if (task.updateLayer()) {
-                        console.log("got here no idea why only once though");
-                        
                         task.nextLayer()
-                        console.log(serverId);
-                        
-                        workQueue.send({ ...task.toQueue(), serverId })
+                        workQueue.send({ ...task.toQueue(), serverId }, { getCache, publish })
                     } else {
+                        publish(`finished-${task.serverId()}`, JSON.stringify({ id: taskId }))
                         tasks.delete(taskId)
                     }
                     break;
                 case 'enough': {
+                    publish(`finished-${task.serverId()}`, JSON.stringify({ id: taskId }))
                     tasks.delete(taskId)
                     break;
                 }
             }
         })
+
+
     })
     .catch(err => {
         console.log(err);

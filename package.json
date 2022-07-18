@@ -6,9 +6,12 @@
   "scripts": {
     "build": "npx tsc",
     "start": "node dist/index.js",
+    "start-one": "node dist/index.js 4001",
+    "start-two": "node dist/index.js 4002",
+    "start-three": "node dist/index.js 4003",
     "dev": "concurrently \"npx tsc --watch\" \"nodemon -q dist/index.js\""
   },
-  "author": "",
+  "author": "Guy Rossert",
   "license": "ISC",
   "devDependencies": {
     "@types/amqplib": "^0.8.2",
@@ -25,5 +28,18 @@
     "dotenv": "^16.0.1",
     "express": "^4.18.1",
     "redis": "^4.2.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GuyRo1/ts-express-template.git"
+  },
+  "keywords": [
+    "typescript",
+    "express",
+    "di"
+  ],
+  "bugs": {
+    "url": "https://github.com/GuyRo1/ts-express-template/issues"
+  },
+  "homepage": "https://github.com/GuyRo1/ts-express-template#readme"
 }

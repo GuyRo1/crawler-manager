@@ -1,5 +1,5 @@
 import { createQueueService } from './services/Queue';
-import { createCacheGetter } from './services/cache'
+import { createCacheGetter, createCacheUpdater } from './services/cache'
 import { createSubscriber, createPublisher } from './services/pubSub';
 import { DependenciesContainer } from "./models/classes";
 
@@ -25,6 +25,11 @@ export const loadDependencies = async () => {
                 name: 'GetCache',
                 type: 'factory',
                 dependency: createCacheGetter
+            },
+            {
+                name: 'SetCache',
+                type: 'factory',
+                dependency: createCacheUpdater
             }
         ])
     } catch (err) {

@@ -32,7 +32,7 @@ loadDependencies()
         server.listen(port, () => {
             console.log(`listening on port ${port}`);
         })
-
+      
         const tasksQueue: QueueService = await dependencies.get('Queue');
         const workQueue: QueueService = await dependencies.get('Queue')
         const publish: Publish = await dependencies.get('Publish')
@@ -52,7 +52,6 @@ loadDependencies()
                     task.max,
                     task.depth,
                 )
-
                 tasks.set(task.id, taskContainer);
                 workQueue.send({ ...taskContainer.toQueue(), serverId }, { getCache, publish })
                 tasksQueue.channel.ack(message as Message);
@@ -71,9 +70,8 @@ loadDependencies()
                 = JSON.parse(message)
 
             const task: TaskContainer | undefined = tasks.get(taskId)
-
             if (!task) return
-
+            await task.initCache()
             await publish(task.serverId(), JSON.stringify({ id: taskId, urls }))
             const status: Status = task.updateUrls({ orgUrl: srcUrl, nextUrls: urls })
             switch (status) {

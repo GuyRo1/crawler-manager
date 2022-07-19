@@ -1,5 +1,6 @@
 import { CachedLink, GetCachedItems } from "../dependencies/services/cache";
 import { Publish } from "../dependencies/services/pubSub";
+import TaskCache from './taskCache';
 
 export type Status = 'ok' | 'fulfilled' | 'enough'
 
@@ -12,6 +13,7 @@ export class TaskContainer {
     private count: number = 0;
     private urls: Map<string, boolean> = new Map()
     private next: string[]
+    private taskCache: TaskCache | undefined;
 
     constructor(
         startUrl: string,
@@ -26,6 +28,11 @@ export class TaskContainer {
         this._serverId = serverId;
         this.urls.set(startUrl, false);
         this.next = []
+    }
+
+
+    async initCache() {
+        const taskCache = new TaskCache(this.taskId)
     }
 
 
@@ -48,6 +55,9 @@ export class TaskContainer {
         this.urls.set(orgUrl, true);
         this.next = this.next.concat(nextUrls);
         this.count += nextUrls.length;
+        if(this.taskCache){
+            this.taskCache.setCache(orgUrl)
+        }
         return this.checkStatus()
     }
 
@@ -57,47 +67,72 @@ export class TaskContainer {
         return this.layer < this.depth;
     }
 
-    nextLayer() {
+    async nextLayer() {
+
+        let nonCachedLinks: string[] = [...this.next]
+
+        if (this.taskCache) {
+            let counter=0
+            nonCachedLinks = []
+            for (let i = 0; i < this.next.length; i++) {
+                if (!(await this.taskCache.checkCache(this.next[i]))) {
+                    nonCachedLinks.push(this.next[i])
+                }else{
+                    counter++
+                }
+            }
+            console.log(`${counter} links already in the system`);
+            
+        }
+
         this.urls = new Map(
-            this.next.map((url: string) => {
+            nonCachedLinks.map((url: string) => {
                 return [url, false];
             }),
         );
+
         this.next = [];
     }
 
-    async nextLayerController(
-        getCachedItems: GetCachedItems
-    ) {
-        const cachedData: CachedLink[] =
-            await getCachedItems(this.getNeededUrls())
-
-        const combinedUrls: string[] = []
-
-        for (let index = 0; index < cachedData.length; index++) {
-            combinedUrls.push(...cachedData[index].nextUrls)
+    async updateCache(urls: string[]) {
+        if (this.taskCache) {
+            for (let i = 0; i < urls.length; i++) {
+                await this.taskCache.setCache(urls[i])
+            }
         }
-
-
-        let status = 'ok'
-        for (let i = 0, ended = false; i < cachedData.length && !ended; i++) {
-            status = this.updateUrls(cachedData[i])
-            if (status === 'fulfilled' || status === 'enough')
-                return { status, urls: combinedUrls }
-        }
-        return { status, urls: combinedUrls }
-
     }
+
+    // async nextLayerController(
+    //     getCachedItems: GetCachedItems
+    // ) {
+    //     const cachedData: CachedLink[] =
+    //         await getCachedItems(this.getNeededUrls())
+
+    //     const combinedUrls: string[] = []
+
+    //     for (let index = 0; index < cachedData.length; index++) {
+    //         combinedUrls.push(...cachedData[index].nextUrls)
+    //     }
+
+
+    //     let status = 'ok'
+    //     for (let i = 0, ended = false; i < cachedData.length && !ended; i++) {
+    //         status = this.updateUrls(cachedData[i])
+    //         if (status === 'fulfilled' || status === 'enough')
+    //             return { status, urls: combinedUrls }
+    //     }
+    //     return { status, urls: combinedUrls }
+
+    // }
 
     getUrlsAsArray() {
         return Array.from(this.urls).map((item: any[]) => item[0])
     }
 
     getNeededUrls() {
-
         return Array.from(this.urls)
             .filter((item: any[]) => !item[1])
-            .map((item:any[])=>item[0])
+            .map((item: any[]) => item[0])
     }
 
     toQueue() {
